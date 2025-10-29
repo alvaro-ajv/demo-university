@@ -19,8 +19,7 @@ spec:
         - name: demo-university-registry-secret
       containers:
       - name: api
-        image: 753022563888.dkr.ecr.us-east-2.amazonaws.com/demo-university/demo-api:latest
-
+        image: IMAGE_PLACEHOLDER
         ports:
         - containerPort: 8000
         env:

@@ -19,7 +19,7 @@ spec:
         - name: demo-university-registry-secret
       containers:
       - name: frontend
-        image: 753022563888.dkr.ecr.us-east-2.amazonaws.com/demo-university/demo-ui:latest
+        image: IMAGE_PLACEHOLDER
         ports:
         - containerPort: 80
         env:
