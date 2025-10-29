@@ -9,6 +9,7 @@ env:
   FRONTEND_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/university-frontend
   EKS_CLUSTER_NAME: cto-ist-cluster
   AWS_REGION: us-east-2
+  NAMESPACE: demo-university
 
 jobs:
   test-api:
@@ -177,17 +178,17 @@ jobs:
         sed -i "s|DOCKER_CONFIG_JSON_PLACEHOLDER|${{ steps.docker-config.outputs.docker-config-json }}|g" k8s/reg-secret.yaml
 
         # Create namespace if not exists
-        kubectl create namespace demo-university || echo "Namespace already exists"
+        kubectl create namespace ${{ env.NAMESPACE }} || echo "Namespace already exists"
 
         # Apply Kubernetes manifests
         kubectl apply -f k8s/
         
-        # Wait for deployments to be ready
-        kubectl rollout status deployment/university-api
-        kubectl rollout status deployment/university-frontend
-        
-        # Get service URLs
+        # Wait for deployments to be ready (specify namespace)
+        kubectl rollout status deployment/university-api -n ${{ env.NAMESPACE }}
+        kubectl rollout status deployment/university-frontend -n ${{ env.NAMESPACE }}
+
+        # Get service URLs (specify namespace)
         echo "API Service:"
-        kubectl get service university-api-service
+        kubectl get service university-api-service -n demo-university
         echo "Frontend Service:"
-        kubectl get service university-frontend-service
+        kubectl get service university-frontend-service -n demo-university
