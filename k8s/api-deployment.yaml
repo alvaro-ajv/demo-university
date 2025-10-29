@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: university-api
   namespace: demo-university
+  annotations:
+    deployment.kubernetes.io/revision: "REVISION_PLACEHOLDER"
   labels:
     app: university-api
 spec:

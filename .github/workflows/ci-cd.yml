@@ -174,14 +174,18 @@ jobs:
         sed -i "s|IMAGE_PLACEHOLDER|${{ env.API_IMAGE_NAME }}|g" k8s/api-deployment.yaml
         sed -i "s|IMAGE_PLACEHOLDER|${{ env.FRONTEND_IMAGE_NAME }}|g" k8s/frontend-deployment.yaml
 
+        # Update revision annotations with GitHub run number for tracking
+        sed -i "s|REVISION_PLACEHOLDER|$(date +%s)|g" k8s/api-deployment.yaml
+        sed -i "s|REVISION_PLACEHOLDER|$(date +%s)|g" k8s/frontend-deployment.yaml
+
         # Update secret with generated Docker config JSON
         sed -i "s|DOCKER_CONFIG_JSON_PLACEHOLDER|${{ steps.docker-config.outputs.docker-config-json }}|g" k8s/reg-secret.yaml
-
+              
         # Create namespace if not exists
         kubectl create namespace ${{ env.NAMESPACE }} || echo "Namespace already exists"
 
         # Apply Kubernetes manifests
-        kubectl apply -f k8s/ --force
+        kubectl apply -f k8s/
         
         # Wait for deployments to be ready (specify namespace)
         kubectl rollout status deployment/university-api -n ${{ env.NAMESPACE }}
@@ -189,6 +193,6 @@ jobs:
 
         # Get service URLs (specify namespace)
         echo "API Service:"
-        kubectl get service university-api-service -n demo-university
+        kubectl get service university-api-service -n ${{ env.NAMESPACE }}
         echo "Frontend Service:"
-        kubectl get service university-frontend-service -n demo-university
+        kubectl get service university-frontend-service -n ${{ env.NAMESPACE }}
