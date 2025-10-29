@@ -1,0 +1,191 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: docker.io
+  API_IMAGE_NAME: university-api
+  FRONTEND_IMAGE_NAME: university-frontend
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd api
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest httpx
+    
+    - name: Run API tests
+      run: |
+        cd api
+        # Create a simple test script
+        cat > test_api.py << 'EOF'
+        import requests
+        import subprocess
+        import time
+        import sys
+        
+        # Start the API server in background
+        proc = subprocess.Popen(['python', 'main.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(5)
+        
+        try:
+            response = requests.get('http://localhost:8000/health')
+            assert response.status_code == 200
+            print('API health check passed')
+        except Exception as e:
+            print(f'API health check failed: {e}')
+            sys.exit(1)
+        finally:
+            proc.terminate()
+        EOF
+        
+        python test_api.py
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/university-dashboard/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd frontend/university-dashboard
+        npm ci
+    
+    - name: Run linting
+      run: |
+        cd frontend/university-dashboard
+        npm run lint || echo "Linting completed with warnings"
+    
+    - name: Build frontend
+      run: |
+        cd frontend/university-dashboard
+        npm run build
+
+  build-and-push:
+    needs: [test-api, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata for API
+      id: meta-api
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.API_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push API image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./api
+        push: true
+        tags: ${{ steps.meta-api.outputs.tags }}
+        labels: ${{ steps.meta-api.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Extract metadata for Frontend
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.FRONTEND_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend/university-dashboard
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-to-eks:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Update kube config
+      run: |
+        aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+    
+    - name: Deploy to EKS
+      run: |
+        # Update image tags in deployment files
+        sed -i "s|DOCKER_USERNAME|${{ secrets.DOCKER_USERNAME }}|g" k8s/api-deployment.yaml
+        sed -i "s|DOCKER_USERNAME|${{ secrets.DOCKER_USERNAME }}|g" k8s/frontend-deployment.yaml
+        sed -i "s|IMAGE_TAG|${{ github.sha }}|g" k8s/api-deployment.yaml
+        sed -i "s|IMAGE_TAG|${{ github.sha }}|g" k8s/frontend-deployment.yaml
+        
+        # Apply Kubernetes manifests
+        kubectl apply -f k8s/
+        
+        # Wait for deployments to be ready
+        kubectl rollout status deployment/university-api
+        kubectl rollout status deployment/university-frontend
+        
+        # Get service URLs
+        echo "API Service:"
+        kubectl get service university-api-service
+        echo "Frontend Service:"
+        kubectl get service university-frontend-service

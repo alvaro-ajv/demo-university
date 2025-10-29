@@ -1,0 +1,167 @@
+<div class="statistics-container">
+  <div class="header">
+    <h2>University Statistics</h2>
+    <button 
+      class="refresh-btn" 
+      (click)="loadAllData()"
+      [disabled]="loading">
+      {{ loading ? 'Loading...' : 'Refresh Data' }}
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  @if (error) {
+    <div class="error-message">
+      {{ error }}
+    </div>
+  }
+
+  <!-- Loading Indicator -->
+  @if (loading) {
+    <div class="loading">
+      Loading statistics...
+    </div>
+  }
+
+  <!-- Statistics Content -->
+  @if (stats && !loading) {
+    <div class="stats-content">
+      <!-- Overview Cards -->
+      <div class="overview-section">
+        <h3>Overview</h3>
+        <div class="overview-cards">
+          <div class="overview-card primary">
+            <div class="card-icon">👥</div>
+            <div class="card-content">
+              <h4>{{ stats.total_students }}</h4>
+              <p>Total Students</p>
+            </div>
+          </div>
+          
+          <div class="overview-card secondary">
+            <div class="card-icon">📚</div>
+            <div class="card-content">
+              <h4>{{ stats.total_courses }}</h4>
+              <p>Available Courses</p>
+            </div>
+          </div>
+          
+          <div class="overview-card success">
+            <div class="card-icon">🎓</div>
+            <div class="card-content">
+              <h4>{{ getMajorData().length }}</h4>
+              <p>Academic Majors</p>
+            </div>
+          </div>
+          
+          <div class="overview-card info">
+            <div class="card-icon">👨‍🏫</div>
+            <div class="card-content">
+              <h4>{{ getUniqueInstructors() }}</h4>
+              <p>Instructors</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Statistics -->
+      <div class="detailed-stats">
+        <!-- Students by Major -->
+        <div class="stat-section">
+          <h3>Students by Major</h3>
+          <div class="major-stats">
+            @for (majorData of getMajorData(); track majorData.major) {
+              <div class="major-item">
+                <div class="major-header">
+                  <span class="major-name">{{ majorData.major }}</span>
+                  <span class="major-percentage">{{ majorData.percentage }}%</span>
+                </div>
+                <div class="major-bar">
+                  <div 
+                    class="major-fill" 
+                    [style.width.%]="majorData.percentage">
+                  </div>
+                </div>
+                <div class="major-count">{{ majorData.count }} students</div>
+              </div>
+            }
+          </div>
+          
+          <div class="top-major">
+            <strong>Most Popular Major:</strong> {{ getTopMajor() }}
+          </div>
+        </div>
+
+        <!-- Students by Year -->
+        <div class="stat-section">
+          <h3>Students by Academic Year</h3>
+          <div class="year-stats">
+            @for (yearData of getYearData(); track yearData.year) {
+              <div class="year-item">
+                <div class="year-header">
+                  <span class="year-name">Year {{ yearData.year }}</span>
+                  <span class="year-count">{{ yearData.count }} students</span>
+                </div>
+                <div class="year-bar">
+                  <div 
+                    class="year-fill" 
+                    [style.width.%]="yearData.percentage">
+                  </div>
+                </div>
+                <div class="year-percentage">{{ yearData.percentage }}%</div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Course Statistics -->
+        <div class="stat-section">
+          <h3>Course Information</h3>
+          <div class="course-stats">
+            <div class="course-stat-item">
+              <span class="stat-label">Total Courses:</span>
+              <span class="stat-value">{{ stats.total_courses }}</span>
+            </div>
+            <div class="course-stat-item">
+              <span class="stat-label">Average Credits per Course:</span>
+              <span class="stat-value">{{ getAverageCreditsPerCourse() }}</span>
+            </div>
+            <div class="course-stat-item">
+              <span class="stat-label">Unique Instructors:</span>
+              <span class="stat-value">{{ getUniqueInstructors() }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Insights -->
+        <div class="stat-section">
+          <h3>Quick Insights</h3>
+          <div class="insights">
+            <div class="insight-item">
+              <div class="insight-icon">🏆</div>
+              <div class="insight-text">
+                <strong>{{ getTopMajor() }}</strong> is the most popular major with 
+                {{ stats.students_by_major[getTopMajor()] }} students
+              </div>
+            </div>
+            
+            <div class="insight-item">
+              <div class="insight-icon">📊</div>
+              <div class="insight-text">
+                Average of <strong>{{ (stats.total_students / getMajorData().length).toFixed(1) }}</strong> 
+                students per major
+              </div>
+            </div>
+            
+            <div class="insight-item">
+              <div class="insight-icon">⭐</div>
+              <div class="insight-text">
+                <strong>{{ getAverageCreditsPerCourse() }}</strong> average credits per course
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,164 @@
+<div class="courses-container">
+  <div class="header">
+    <h2>Courses Catalog</h2>
+    <div class="course-summary">
+      @if (courses.length > 0) {
+        <div class="summary-stats">
+          <span class="stat">{{ courses.length }} Courses</span>
+          <span class="stat">{{ getTotalCredits() }} Total Credits</span>
+          <span class="stat">{{ getUniqueInstructors().length }} Instructors</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  @if (error) {
+    <div class="error-message">
+      {{ error }}
+    </div>
+  }
+
+  <!-- Loading Indicator -->
+  @if (loading) {
+    <div class="loading">
+      Loading courses...
+    </div>
+  }
+
+  <!-- Courses List -->
+  <div class="courses-content">
+    @if (courses.length === 0 && !loading) {
+      <div class="empty-state">
+        <p>No courses found.</p>
+      </div>
+    } @else {
+      <!-- Course Statistics -->
+      <div class="course-stats">
+        <h3>Course Statistics</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h4>By Credits</h4>
+            <div class="credit-breakdown">
+              @for (credits of [3, 4]; track credits) {
+                <div class="credit-item">
+                  <span class="credit-label">{{ credits }} Credits:</span>
+                  <span class="credit-count">{{ getCoursesByCredits(credits).length }} courses</span>
+                </div>
+              }
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <h4>Instructors</h4>
+            <div class="instructor-list">
+              @for (instructor of getUniqueInstructors(); track instructor) {
+                <div class="instructor-item">{{ instructor }}</div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Courses Grid -->
+      <div class="courses-list">
+        <h3>All Courses</h3>
+        <div class="filter-section">
+          <div class="filter-controls">
+            <select [(ngModel)]="selectedCreditFilter" (change)="applyFilters()" class="filter-select">
+              <option value="">All Credits</option>
+              <option value="3">3 Credits</option>
+              <option value="4">4 Credits</option>
+            </select>
+            
+            <select [(ngModel)]="selectedInstructorFilter" (change)="applyFilters()" class="filter-select">
+              <option value="">All Instructors</option>
+              @for (instructor of getUniqueInstructors(); track instructor) {
+                <option [value]="instructor">{{ instructor }}</option>
+              }
+            </select>
+            
+            <button class="clear-filters-btn" (click)="clearFilters()" [disabled]="!hasActiveFilters()">
+              Clear Filters
+            </button>
+          </div>
+        </div>
+        
+        <div class="courses-grid">
+          @for (course of getFilteredCourses(); track course.id) {
+            <div class="course-card" [class.expanded]="selectedCourse?.id === course.id">
+              <div class="course-header">
+                <h4>{{ course.name }}</h4>
+                <span class="course-code">{{ course.code }}</span>
+              </div>
+              <div class="course-details">
+                <div class="course-info">
+                  <span class="credits">{{ course.credits }} Credits</span>
+                  <span class="instructor">{{ course.instructor }}</span>
+                </div>
+                <div class="course-actions">
+                  <button 
+                    class="view-btn" 
+                    (click)="toggleCourseDetails(course)"
+                    [disabled]="loading">
+                    {{ selectedCourse?.id === course.id ? 'Hide Details' : 'View Details' }}
+                  </button>
+                </div>
+              </div>
+              
+              @if (selectedCourse?.id === course.id) {
+                <div class="course-expanded-details">
+                  <div class="detail-section">
+                    <h5>Course Information</h5>
+                    <div class="detail-grid">
+                      <div class="detail-item">
+                        <strong>Course ID:</strong> {{ course.id }}
+                      </div>
+                      <div class="detail-item">
+                        <strong>Course Code:</strong> {{ course.code }}
+                      </div>
+                      <div class="detail-item">
+                        <strong>Full Name:</strong> {{ course.name }}
+                      </div>
+                      <div class="detail-item">
+                        <strong>Credit Hours:</strong> {{ course.credits }}
+                      </div>
+                      <div class="detail-item">
+                        <strong>Instructor:</strong> {{ course.instructor }}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="detail-section">
+                    <h5>Enrollment Simulation</h5>
+                    <p class="simulation-text">
+                      This course accommodates approximately <strong>{{ getEstimatedCapacity(course) }}</strong> students 
+                      based on {{ course.credits }} credit hours.
+                    </p>
+                    <div class="course-metrics">
+                      <div class="metric">
+                        <span class="metric-label">Difficulty Level:</span>
+                        <span class="metric-value">{{ getDifficultyLevel(course) }}</span>
+                      </div>
+                      <div class="metric">
+                        <span class="metric-label">Course Type:</span>
+                        <span class="metric-value">{{ getCourseType(course) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        
+        @if (getFilteredCourses().length === 0 && (selectedCreditFilter || selectedInstructorFilter)) {
+          <div class="no-results">
+            <p>No courses match the selected filters.</p>
+            <button class="clear-filters-btn" (click)="clearFilters()">Clear Filters</button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

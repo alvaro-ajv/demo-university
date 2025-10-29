@@ -1,0 +1,205 @@
+<div class="students-container">
+  <div class="header">
+    <h2>Students Management</h2>
+    <button 
+      class="add-btn" 
+      (click)="toggleAddForm()"
+      [disabled]="loading">
+      {{ showAddForm ? (editingStudent ? 'Cancel Edit' : 'Cancel') : 'Add Student' }}
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  @if (error) {
+    <div class="error-message">
+      {{ error }}
+    </div>
+  }
+
+  <!-- Loading Indicator -->
+  @if (loading) {
+    <div class="loading">
+      Loading...
+    </div>
+  }
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <h3>Filters & Search</h3>
+    <div class="filters-controls">
+      <div class="search-box">
+        <input 
+          type="text" 
+          placeholder="Search by name or email..."
+          [(ngModel)]="searchTerm"
+          (input)="applyFilters()"
+          class="search-input">
+      </div>
+      
+      <select [(ngModel)]="selectedMajorFilter" (change)="applyFilters()" class="filter-select">
+        <option value="">All Majors</option>
+        @for (major of availableMajors; track major) {
+          <option [value]="major">{{ major }}</option>
+        }
+      </select>
+      
+      <select [(ngModel)]="selectedYearFilter" (change)="applyFilters()" class="filter-select">
+        <option value="">All Years</option>
+        @for (year of availableYears; track year) {
+          <option [value]="year">Year {{ year }}</option>
+        }
+      </select>
+      
+      <button 
+        class="clear-filters-btn" 
+        (click)="clearFilters()"
+        [disabled]="!hasActiveFilters()">
+        Clear Filters
+      </button>
+    </div>
+    
+    <div class="results-info">
+      Showing {{ getFilteredStudents().length }} of {{ students.length }} students
+    </div>
+  </div>
+
+  <!-- Add/Edit Student Form -->
+  @if (showAddForm) {
+    <div class="add-form">
+      <h3>{{ editingStudent ? 'Edit Student' : 'Add New Student' }}</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="name">Name *</label>
+          <input 
+            type="text" 
+            id="name"
+            [(ngModel)]="studentForm.name" 
+            placeholder="Enter student name"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input 
+            type="email" 
+            id="email"
+            [(ngModel)]="studentForm.email" 
+            placeholder="Enter student email"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="major">Major *</label>
+          <select id="major" [(ngModel)]="studentForm.major" required>
+            <option value="">Select a major</option>
+            @for (major of availableMajors; track major) {
+              <option [value]="major">{{ major }}</option>
+            }
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="year">Year</label>
+          <select id="year" [(ngModel)]="studentForm.year">
+            @for (year of availableYears; track year) {
+              <option [value]="year">{{ year }}{{ getYearSuffix(year) }} Year</option>
+            }
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        @if (editingStudent) {
+          <button 
+            class="submit-btn" 
+            (click)="updateStudent()"
+            [disabled]="loading">
+            Update Student
+          </button>
+        } @else {
+          <button 
+            class="submit-btn" 
+            (click)="addStudent()"
+            [disabled]="loading">
+            Add Student
+          </button>
+        }
+        <button 
+          class="cancel-btn" 
+          (click)="resetForm()"
+          [disabled]="loading">
+          Cancel
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Students List -->
+  <div class="students-list">
+    @if (getFilteredStudents().length === 0 && !loading) {
+      <div class="empty-state">
+        @if (hasActiveFilters()) {
+          <p>No students match the selected filters.</p>
+          <button class="clear-filters-btn" (click)="clearFilters()">Clear Filters</button>
+        } @else {
+          <p>No students found.</p>
+        }
+      </div>
+    } @else {
+      <div class="students-grid">
+        @for (student of getFilteredStudents(); track student.id) {
+          <div class="student-card">
+            <div class="student-info">
+              <h3>{{ student.name }}</h3>
+              <p class="email">{{ student.email }}</p>
+              <p class="major">{{ student.major }}</p>
+              <p class="year">{{ student.year }}{{ getYearSuffix(student.year) }} Year</p>
+            </div>
+            <div class="student-actions">
+              <button 
+                class="edit-btn" 
+                (click)="editStudent(student)"
+                [disabled]="loading">
+                Edit
+              </button>
+              <button 
+                class="delete-btn" 
+                (click)="deleteStudent(student.id)"
+                [disabled]="loading">
+                Delete
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Quick Stats -->
+  @if (students.length > 0 && !loading) {
+    <div class="quick-stats">
+      <h3>Quick Statistics</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h4>{{ students.length }}</h4>
+          <p>Total Students</p>
+        </div>
+        
+        <div class="stat-card">
+          <h4>{{ getObjectKeys(getStudentsByMajor()).length }}</h4>
+          <p>Different Majors</p>
+        </div>
+        
+        <div class="stat-card">
+          <h4>{{ getUniqueEmailDomains().length }}</h4>
+          <p>Email Domains</p>
+        </div>
+        
+        <div class="stat-card">
+          <h4>{{ getObjectKeys(getStudentsByYear()).length }}</h4>
+          <p>Academic Years</p>
+        </div>
+      </div>
+    </div>
+  }
+</div>
