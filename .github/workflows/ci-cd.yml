@@ -2,15 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
     branches: [ main ]
-
 env:
   REGISTRY: docker.io
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  API_IMAGE_NAME: university-api
-  FRONTEND_IMAGE_NAME: university-frontend
+  API_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/university-api
+  FRONTEND_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/university-frontend
   EKS_CLUSTER_NAME: cto-ist-cluster
   AWS_REGION: us-east-2
 
@@ -91,9 +87,6 @@ jobs:
   build-and-push:
     needs: [test-api, test-frontend]
     runs-on: ubuntu-latest
-    outputs:
-      api-image: ${{ steps.image-names.outputs.api-image }}
-      frontend-image: ${{ steps.image-names.outputs.frontend-image }}
     
     steps:
     - uses: actions/checkout@v4
@@ -106,48 +99,20 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
-      
-    - name: Extract metadata for API
-      id: meta-api
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.DOCKER_USERNAME }}/${{ env.API_IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
     
     - name: Build and push API image
       uses: docker/build-push-action@v5
       with:
         context: ./api
         push: true
-        tags: ${{ steps.meta-api.outputs.tags }}
-        labels: ${{ steps.meta-api.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Extract metadata for Frontend
-      id: meta-frontend
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.DOCKER_USERNAME }}/${{ env.FRONTEND_IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+        tags: ${{ env.API_IMAGE_NAME }}:latest
     
     - name: Build and push Frontend image
       uses: docker/build-push-action@v5
       with:
         context: ./frontend/university-dashboard
         push: true
-        tags: ${{ steps.meta-frontend.outputs.tags }}
-        labels: ${{ steps.meta-frontend.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        tags: ${{ env.FRONTEND_IMAGE_NAME }}:latest
 
   deploy-to-eks:
     needs: build-and-push
@@ -205,9 +170,9 @@ jobs:
     - name: Deploy to EKS
       run: |
         # Update image references in deployment files using outputs from build job
-        sed -i "s|IMAGE_PLACEHOLDER|${{ needs.build-and-push.outputs.api-image }}|g" k8s/api-deployment.yaml
-        sed -i "s|IMAGE_PLACEHOLDER|${{ needs.build-and-push.outputs.frontend-image }}|g" k8s/frontend-deployment.yaml
-        
+        sed -i "s|IMAGE_PLACEHOLDER|${{ env.API_IMAGE_NAME }}|g" k8s/api-deployment.yaml
+        sed -i "s|IMAGE_PLACEHOLDER|${{ env.FRONTEND_IMAGE_NAME }}|g" k8s/frontend-deployment.yaml
+
         # Update secret with generated Docker config JSON
         sed -i "s|DOCKER_CONFIG_JSON_PLACEHOLDER|${{ steps.docker-config.outputs.docker-config-json }}|g" k8s/reg-secret.yaml
 
