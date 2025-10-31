@@ -62,3 +62,24 @@ spec:
     port: 8000
     targetPort: 8000
   type: ClusterIP
+---
+# LoadBalancer service for external API access
+apiVersion: v1
+kind: Service
+metadata:
+  name: university-api-external
+  namespace: demo-university
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-type: external
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+  labels:
+    app: university-api
+spec:
+  selector:
+    app: university-api
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+  type: LoadBalancer

@@ -152,7 +152,7 @@ jobs:
     
     - name: Deploy to EKS
       run: |
-        # Update image references in deployment files using outputs from build job
+        # Update image references in deployment files
         sed -i "s|IMAGE_PLACEHOLDER|${{ env.API_IMAGE_NAME }}|g" k8s/api-deployment.yaml
         sed -i "s|IMAGE_PLACEHOLDER|${{ env.FRONTEND_IMAGE_NAME }}|g" k8s/frontend-deployment.yaml
 
@@ -162,19 +162,10 @@ jobs:
 
         # Update secret with generated Docker config JSON
         sed -i "s|DOCKER_CONFIG_JSON_PLACEHOLDER|${{ steps.docker-config.outputs.docker-config-json }}|g" k8s/reg-secret.yaml
-              
-        # Create namespace if not exists
-        kubectl create namespace ${{ env.NAMESPACE }} || echo "Namespace already exists"
-
-        # Apply Kubernetes manifests
-        kubectl apply -f k8s/
         
-        # Wait for deployments to be ready (specify namespace)
-        kubectl rollout status deployment/university-api -n ${{ env.NAMESPACE }}
-        kubectl rollout status deployment/university-frontend -n ${{ env.NAMESPACE }}
-
-        # Get service URLs (specify namespace)
-        echo "API Service:"
-        kubectl get service university-api-service -n ${{ env.NAMESPACE }}
-        echo "Frontend Service:"
-        kubectl get service university-frontend-service -n ${{ env.NAMESPACE }}
+        # Apply registry secret first
+        kubectl apply -f k8s/reg-secret.yaml
+        
+        # Make deploy script executable and run it
+        chmod +x ./deploy-k8s.sh
+        ./deploy-k8s.sh
