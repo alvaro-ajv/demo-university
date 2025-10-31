@@ -65,22 +65,3 @@ spec:
   type: LoadBalancer
   selector:
     app: university-frontend
-
----
-# For NodePort Service for local testing
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: university-frontend-service
-#   namespace: demo-university
-#   labels:
-#     app: university-frontend
-# spec:
-#   selector:
-#     app: university-frontend
-#   ports:
-#   - protocol: TCP
-#     port: 80
-#     targetPort: 80
-#     nodePort: 30080
-#   type: NodePort

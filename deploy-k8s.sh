@@ -3,7 +3,7 @@
 set -e
 
 NAMESPACE="demo-university"
-API_SERVICE="university-api-external"
+API_SERVICE="university-api-service"
 FRONTEND_DEPLOYMENT="university-frontend"
 
 echo "🚀 Deploying University Demo App to Kubernetes..."
