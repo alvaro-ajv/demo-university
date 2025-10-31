@@ -28,25 +28,27 @@ export class StatisticsComponent implements OnInit {
     }
   }
 
-  loadAllData() {
+  async loadAllData() {
     this.loading = true;
     this.error = '';
 
-    // Load stats, students, and courses in parallel
-    Promise.all([
-      this.apiService.getStats().toPromise(),
-      this.apiService.getStudents().toPromise(),
-      this.apiService.getCourses().toPromise()
-    ]).then(([stats, students, courses]) => {
+    try {
+      // Load stats, students, and courses in parallel
+      const [stats, students, courses] = await Promise.all([
+        this.apiService.getStats().toPromise(),
+        this.apiService.getStudents().toPromise(),
+        this.apiService.getCourses().toPromise()
+      ]);
+      
       this.stats = stats!;
       this.students = students!;
       this.courses = courses!;
       this.loading = false;
-    }).catch(err => {
+    } catch (err) {
       this.error = 'Failed to load statistics. Please try again.';
       this.loading = false;
       console.error('Error loading statistics:', err);
-    });
+    }
   }
 
   getMajorData(): { major: string; count: number; percentage: number }[] {

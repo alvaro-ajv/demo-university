@@ -28,34 +28,11 @@ jobs:
         cd api
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest httpx
     
-    - name: Run API tests
+    - name: Run unit tests
       run: |
         cd api
-        # Create a simple test script
-        cat > test_api.py << 'EOF'
-        import requests
-        import subprocess
-        import time
-        import sys
-        
-        # Start the API server in background
-        proc = subprocess.Popen(['python', 'main.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(5)
-        
-        try:
-            response = requests.get('http://localhost:8000/health')
-            assert response.status_code == 200
-            print('API health check passed')
-        except Exception as e:
-            print(f'API health check failed: {e}')
-            sys.exit(1)
-        finally:
-            proc.terminate()
-        EOF
-        
-        python test_api.py
+        python -m pytest tests/ -v --tb=short
 
   test-frontend:
     runs-on: ubuntu-latest
@@ -79,6 +56,11 @@ jobs:
       run: |
         cd frontend/university-dashboard
         npm run lint || echo "Linting completed with warnings"
+    
+    - name: Run unit tests
+      run: |
+        cd frontend/university-dashboard
+        npm run test -- --watch=false --browsers=ChromeHeadless
     
     - name: Build frontend
       run: |

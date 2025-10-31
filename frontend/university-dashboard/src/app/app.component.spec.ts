@@ -1,10 +1,23 @@
 import { TestBed } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { AppComponent } from './app.component';
+import { Component } from '@angular/core';
+
+// Mock component for routing tests
+@Component({ template: '' })
+class MockComponent { }
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AppComponent],
+      imports: [
+        AppComponent,
+        RouterTestingModule.withRoutes([
+          { path: 'students', component: MockComponent },
+          { path: 'courses', component: MockComponent },
+          { path: 'stats', component: MockComponent }
+        ])
+      ]
     }).compileComponents();
   });
 
@@ -20,10 +33,36 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('university-dashboard');
   });
 
-  it('should render title', () => {
+  it('should render navigation title', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, university-dashboard');
+    expect(compiled.querySelector('.nav-title')?.textContent).toContain('University Dashboard');
+  });
+
+  it('should render navigation links', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    
+    const links = compiled.querySelectorAll('.nav-links a');
+    expect(links.length).toBe(3);
+    expect(links[0].textContent).toContain('Students');
+    expect(links[1].textContent).toContain('Courses');
+    expect(links[2].textContent).toContain('Statistics');
+  });
+
+  it('should have correct router links', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    
+    const studentsLink = compiled.querySelector('a[routerLink="/students"]');
+    const coursesLink = compiled.querySelector('a[routerLink="/courses"]');
+    const statsLink = compiled.querySelector('a[routerLink="/stats"]');
+    
+    expect(studentsLink).toBeTruthy();
+    expect(coursesLink).toBeTruthy();
+    expect(statsLink).toBeTruthy();
   });
 });
