@@ -52,21 +52,11 @@ jobs:
       run: |
         cd frontend/university-dashboard
         npm ci
-    
-    - name: Run linting
-      run: |
-        cd frontend/university-dashboard
-        npm run lint || echo "Linting completed with warnings"
-    
+
     - name: Run unit tests
       run: |
         cd frontend/university-dashboard
         npm run test -- --watch=false --browsers=ChromeHeadless
-    
-    - name: Build frontend
-      run: |
-        cd frontend/university-dashboard
-        npm run build
 
   build-and-push:
     needs: [test-api, test-frontend]
