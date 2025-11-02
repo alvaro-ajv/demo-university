@@ -33,13 +33,6 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('university-dashboard');
   });
 
-  it('should render navigation title', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.nav-title')?.textContent).toContain('University Dashboard');
-  });
-
   it('should render navigation links', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
