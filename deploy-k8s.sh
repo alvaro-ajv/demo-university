@@ -16,9 +16,9 @@ kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f 
 echo "📦 Deploying API service..."
 kubectl apply -f k8s/api-deployment.yaml
 
-# Wait for API LoadBalancer to get external IP
-echo "⏳ Waiting for API LoadBalancer to get external IP..."
-kubectl wait --for=condition=Ready --timeout=300s svc/$API_SERVICE -n $NAMESPACE 2>/dev/null || true
+# Wait for API deployment to be ready
+echo "⏳ Waiting for API deployment to be ready..."
+kubectl rollout status deployment/university-api -n $NAMESPACE --timeout=300s
 
 # Get the external IP
 echo "🔍 Getting API LoadBalancer external URL..."
@@ -52,10 +52,6 @@ kubectl apply -f k8s/frontend-deployment-updated.yaml
 # Wait for frontend deployment to be ready
 echo "⏳ Waiting for frontend deployment to be ready..."
 kubectl rollout status deployment/$FRONTEND_DEPLOYMENT -n $NAMESPACE --timeout=300s
-
-# Wait for frontend LoadBalancer
-echo "⏳ Waiting for frontend LoadBalancer..."
-kubectl wait --for=condition=Ready --timeout=300s svc/university-frontend-service -n $NAMESPACE 2>/dev/null || true
 
 # Get frontend URL
 FRONTEND_IP=""
