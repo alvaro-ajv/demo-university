@@ -16,24 +16,34 @@ The application consists of:
 demo-app/
 ├── api/                          # Python FastAPI backend
 │   ├── main.py                   # Main API application
+│   ├── controllers/              # API controllers (students, courses, stats)
+│   ├── models/                   # Data models
+│   ├── tests/                    # Unit tests
 │   ├── requirements.txt          # Python dependencies
-│   ├── Dockerfile               # API container configuration
-│   └── .gitignore
+│   ├── pytest.ini              # Test configuration
+│   └── Dockerfile               # API container configuration
 ├── frontend/                     # Angular frontend
 │   └── university-dashboard/
 │       ├── src/                  # Angular source code
+│       │   ├── app/              # Angular components and services
+│       │   ├── assets/           # Static assets and configuration
+│       │   └── environments/     # Environment configurations
 │       ├── Dockerfile           # Frontend container configuration
 │       ├── nginx.conf           # Nginx configuration
+│       ├── entrypoint.sh        # Container startup script
 │       └── package.json
-├── k8s/                         # Kubernetes manifests
+├── k8s/                         # Kubernetes manifests (cloud deployment)
 │   ├── api-deployment.yaml      # API deployment configuration
 │   ├── frontend-deployment.yaml # Frontend deployment configuration
-│   ├── ingress.yaml            # Load balancer configuration
-│   ├── rbac.yaml               # Security and permissions
-│   └── fargate.yaml            # Fargate-specific configurations
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml           # GitHub Actions pipeline
+│   └── reg-secret.yaml         # Registry secret
+├── k8s-local/                   # Local Kubernetes manifests
+│   ├── api-deployment.yaml      # Local API deployment
+│   ├── frontend-deployment.yaml # Local frontend deployment
+│   ├── reg-secret.yaml         # Local registry secret
+│   └── docker-config.json      # Docker configuration
+├── docker-compose.yml          # Docker Compose configuration
+├── deploy-k8s.sh               # Kubernetes deployment script
+├── metallb.yml                 # MetalLB configuration for local LoadBalancer
 └── README.md                   # This file
 ```
 
@@ -76,6 +86,7 @@ demo-app/
 ### Build and Run with Docker
 
 1. **Build the API container**
+
    ```bash
    cd api
    docker build -t university-api .
@@ -83,34 +94,66 @@ demo-app/
    ```
 
 2. **Build the Frontend container**
+
    ```bash
    cd frontend/university-dashboard
    docker build -t university-frontend .
    docker run -p 80:80 university-frontend
    ```
 
-### Docker Compose (Optional)
+### Docker Compose (Recommended)
 
-Create a `docker-compose.yml` file:
+Use the included `docker-compose.yml` file for easy development:
+
 ```yaml
 version: '3.8'
+
 services:
   api:
-    build: ./api
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend/university-dashboard
+    build: 
+      context: ./frontend/university-dashboard
+      dockerfile: Dockerfile
     ports:
       - "80:80"
-    depends_on:
-      - api
+    environment:
+      - API_URL=http://localhost:8000
+    restart: unless-stopped
+
+networks:
+  default:
+    name: university-network
 ```
 
-Run with: `docker-compose up`
+**Run with Docker Compose:**
+
+```bash
+# Build and start all services
+docker-compose up --build
+
+# Run in background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+**Access the application:**
+- Frontend: <http://localhost>
+- API: <http://localhost:8000>
+- API Documentation: <http://localhost:8000/docs>
 
 ## 🔄 CI/CD with GitHub Actions
 
@@ -137,9 +180,10 @@ The GitHub Actions pipeline includes:
 
 ## ☸️ AWS EKS Deployment
 
-### Prerequisites
+### EKS Prerequisites
 
 1. **Create EKS Cluster**
+
    ```bash
    # Using eksctl (recommended)
    eksctl create cluster \
@@ -149,13 +193,35 @@ The GitHub Actions pipeline includes:
    ```
 
 2. **Configure kubectl**
+
    ```bash
    aws eks update-kubeconfig --name university-workshop --region us-west-2
    ```
 
+### Automated Deployment
+
+Use the included deployment script for easy Kubernetes deployment:
+
+```bash
+# Make the script executable
+chmod +x deploy-k8s.sh
+
+# Run the deployment
+./deploy-k8s.sh
+```
+
+The script will:
+- Create the namespace `demo-university`
+- Deploy the API service with LoadBalancer
+- Wait for the API LoadBalancer to get an external IP
+- Update the frontend deployment with the actual API URL
+- Deploy the frontend service
+- Provide you with the URLs to access both services
+
 ### Manual Deployment
 
 1. **Update image references in k8s files**
+
    ```bash
    # Replace DOCKER_USERNAME with your Docker Hub username
    sed -i 's/DOCKER_USERNAME/yourusername/g' k8s/*.yaml
@@ -164,29 +230,57 @@ The GitHub Actions pipeline includes:
    ```
 
 2. **Deploy to Kubernetes**
+
    ```bash
    # Create namespace
-   kubectl apply -f k8s/ingress.yaml
+   kubectl create namespace demo-university
 
    # Deploy applications
    kubectl apply -f k8s/api-deployment.yaml
    kubectl apply -f k8s/frontend-deployment.yaml
-   kubectl apply -f k8s/rbac.yaml
-   kubectl apply -f k8s/fargate.yaml
    ```
 
 3. **Check deployment status**
+
    ```bash
-   kubectl get pods
-   kubectl get services
-   kubectl describe ingress university-ingress
+   kubectl get pods -n demo-university
+   kubectl get services -n demo-university
    ```
+
+### Local Kubernetes (Docker Desktop)
+
+For local development with Kubernetes:
+
+```bash
+# Enable Kubernetes in Docker Desktop
+# Then deploy locally
+kubectl apply -f k8s-local/
+```
+
+#### Port Forwarding for Local Access
+
+Since local Kubernetes may not have LoadBalancer support, use port forwarding to access the services:
+
+```bash
+# Port forward the API service (in one terminal)
+kubectl port-forward service/university-api-service 8000:8000 -n demo-university
+
+# Port forward the frontend service (in another terminal)
+kubectl port-forward service/university-frontend-service 8080:80 -n demo-university
+```
+
+**Access the application locally:**
+- **Frontend**: <http://localhost:8080>
+- **API**: <http://localhost:8000>
+- **API Documentation**: <http://localhost:8000/docs>
+
+**Note**: Keep the port-forward commands running in separate terminals while you access the application.
 
 ### Access the Application
 
 - **API**: Use the LoadBalancer service URL + `/docs` for Swagger UI
 - **Frontend**: Use the LoadBalancer service URL
-- **Logs**: `kubectl logs -f deployment/university-api`
+- **Logs**: `kubectl logs -f deployment/university-api -n demo-university`
 
 ## 🎓 Workshop Steps
 
@@ -249,22 +343,30 @@ The GitHub Actions pipeline includes:
 ### Common Issues
 
 1. **API not responding**
+
    ```bash
-   kubectl logs deployment/university-api
-   kubectl describe pod <pod-name>
+   kubectl logs deployment/university-api -n demo-university
+   kubectl describe pod <pod-name> -n demo-university
    ```
 
 2. **Frontend can't reach API**
-   - Check service names in environment variables
-   - Verify network policies
-   - Test with `kubectl port-forward`
+   - Check API URL in environment variables
+   - For Docker Compose: API should be accessible at `localhost:8000`
+   - For Kubernetes: API URL is dynamically set by deployment script
+   - Test API connectivity: `curl http://localhost:8000/health`
 
 3. **Docker build failures**
    - Check Dockerfile syntax
    - Verify base image availability
    - Clear Docker cache: `docker system prune`
 
-4. **GitHub Actions failures**
+4. **Kubernetes LoadBalancer timeout**
+   - The deployment script now properly waits for deployments instead of services
+   - Check if your cluster supports LoadBalancer services
+   - For local development, use port forwarding instead of LoadBalancer services
+   - For local development, consider using NodePort services
+
+5. **GitHub Actions failures**
    - Check secrets configuration
    - Verify branch protection rules
    - Review workflow syntax
@@ -272,23 +374,58 @@ The GitHub Actions pipeline includes:
 ### Useful Commands
 
 ```bash
-# Check cluster info
-kubectl cluster-info
+# Docker Compose
+docker-compose logs api
+docker-compose logs frontend
+docker-compose exec api python main.py
+docker-compose down && docker-compose up --build
 
-# Get pod details
-kubectl get pods -o wide
+# Kubernetes
+kubectl get pods -n demo-university
+kubectl get services -n demo-university
+kubectl logs -f deployment/university-api -n demo-university
+kubectl describe deployment university-api -n demo-university
 
-# Port forward for testing
-kubectl port-forward service/university-api-service 8000:8000
+# Port forwarding for local access
+kubectl port-forward service/university-api-service 8000:8000 -n demo-university
+kubectl port-forward service/university-frontend-service 8080:80 -n demo-university
 
-# Check resource usage
-kubectl top pods
+# Local testing
+curl http://localhost:8000/health
+curl http://localhost:8000/students
+```
 
-# Scale deployments
-kubectl scale deployment university-api --replicas=3
+## 🧪 Testing
 
-# Update deployments
-kubectl set image deployment/university-api api=yourusername/university-api:v2
+### API Testing
+
+The API includes comprehensive unit tests:
+
+```bash
+# Run tests locally
+cd api
+pip install -r requirements.txt
+python -m pytest
+
+# Run tests with coverage
+python -m pytest --cov=. --cov-report=html
+
+# Run tests in Docker
+docker-compose exec api python -m pytest
+```
+
+### Frontend Testing
+
+The Angular frontend includes unit tests:
+
+```bash
+# Run tests locally
+cd frontend/university-dashboard
+npm install
+npm test
+
+# Run tests in CI mode
+npm run test -- --watch=false --browsers=ChromeHeadless
 ```
 
 ## 📚 Learning Resources
@@ -325,4 +462,4 @@ By the end of this workshop, students will:
 - ✅ Apply DevOps best practices
 - ✅ Debug and troubleshoot containerized applications
 
-**Happy Learning! 🚀**
+## 🚀 Happy Learning
